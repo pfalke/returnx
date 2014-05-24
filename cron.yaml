@@ -1,0 +1,4 @@
+cron:
+- description: hourly mail send
+  url: /sendmail
+  schedule: every 1 minutes 

@@ -1,0 +1,2 @@
+MANDRILL_KEY = 'yourAPIkey'
+

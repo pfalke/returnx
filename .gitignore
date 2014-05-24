@@ -1,0 +1,17 @@
+*.pyc
+
+.DS_Store
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# only sample file versioned
+app.yaml
+#contains API keys
+config.py
+
+
+
+
+#

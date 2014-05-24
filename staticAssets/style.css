@@ -1,0 +1,79 @@
+body {background:#f1f1f2; color:#575757; font-size:100%; font-family:"Helvetica Neue", Helvetica, Arial, Verdana, sans-serif;}
+
+/*Tables --------------------------------------------------*/
+table {
+	width:100%; 
+	margin-bottom:1.4em; 
+	border-collapse:separate; 
+	border:0;
+	table-layout: fixed;}
+th {font-weight:bold; 
+	font-size:110%; 
+	color:#fff; 
+	background-color:#008bc0; 
+	height:29px; text-transform:capitalize; padding:0 10px; 
+	vertical-align:middle;}
+
+thead tr, tfoot tr {background:none transparent !important;}
+thead th {border-left:1px solid transparent;}
+thead th:first-child {border-left:none;}
+th:last-of-type, td:last-of-type {border-right:0}
+th.due {
+	width: 280px;
+}
+th.subject {
+	width: 30%;
+}
+th.for, th.created {
+	width: 15%;
+}
+th.delete {
+	width: 10%;
+}
+td {color:#4f4f4f; border-bottom:1px solid #bfbfbf; font-size:14px; padding:9px 10px; vertical-align:top;white-space:nowrap;overflow: hidden;}
+td.subject {width:100px;}
+tfoot td {font-style:italic;}
+caption {margin:0 0 -3px 0; padding:6px 10px; color:#333; font-size:16px; border-bottom:1px solid #aaa; text-transform:capitalize;}
+/*tr:nth-child(odd) {background:#eee;}
+tr:nth-child(even) {background:#fff;}*/
+tr:last-child td {border-bottom:none !important;}
+tr:hover {background:#e2f4fe !important; color:#333;}
+table.vertical-table {border-top:1px solid #e4e4e4;}
+.vertical-table caption {color:#f1f1f2; background-color:#008BC0; margin-bottom:0;}
+.vertical-table th {border-top:none; border-bottom:1px solid #bfbfbf; background-color:#ddd; color:#4f4f4f;}
+.vertical-table tr:last-child td {border-bottom:1px solid #bfbfbf !important;}
+
+form.updateForm {
+    display: inline-block;
+    display: none;
+    opacity: 1;
+}
+input {
+	font-family:"Helvetica Neue";
+	/*display: none;*/
+}
+input.dateinput {
+	width: 100px
+}
+input.timeinput {
+	width: 50px
+}
+	
+div.editbutton, div.deletebutton, div.submitbutton {
+    display: inline-block;
+/*    height:20px;
+*/	width:70px;
+	color:#fff; 
+	background-color:#008bc0; 
+/*	background-color:#cc0000;
+	color:#ffffff;
+*/	border-radius: 5px;
+	text-align:center;
+	margin-left: 10px;
+	opacity: 0.25;	
+	cursor: pointer;
+}
+
+div.submitbutton {
+	opacity: 1;
+}

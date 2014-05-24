@@ -1,0 +1,36 @@
+application: your-app-identifier
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: yes
+
+handlers:
+- url: /favicon\.ico
+  static_files: favicon.ico
+  upload: favicon\.ico
+
+# ReturnIt
+
+- url: /staticAssets
+  static_dir: staticAssets
+
+- url: /(inbound|updateReminder|deleteReminder)
+  script: main.app
+
+- url: /(queue|sendmail)
+  script: main.app
+  login: admin
+
+# URL Shortener
+
+- url: /s
+  script: urlshort.app
+
+- url: /s/(.*)
+  script: urlshort.app
+
+libraries:
+- name: webapp2
+  version: "2.5.2"
+- name: jinja2
+  version: "2.6"
