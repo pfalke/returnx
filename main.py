@@ -244,68 +244,26 @@ class Sendmail(webapp2.RequestHandler):
 class MyRequestHandler(webapp.RequestHandler):
     def get(self):
         user = users.get_current_user()
+        template_values = {
+            'loggedIn': False
+        }
+
+        # Login/logout stuff
         if user:
             seenuserbefore(user.email().lower(),usedweb=True)
-            logout = '<p align="right">%s (%s), <a href=\"%s\">log out</a></p>' % (user.nickname(), user.email() ,users.create_logout_url("/"))
+            template_values['loggedIn'] = True
+            template_values['userData'] = {
+                'nickname': user.nickname(),
+                'email': user.email(),
+                'logOutUrl': users.create_logout_url("/")
+            }
         else:
-            logout = '<p align="right"><a href=\"%s\">log in</a></p>' % (users.create_login_url(self.request.uri))
-        self.response.out.write('''
-            <!DOCTYPE html PUBLIC "-//IETF//DTD HTML 2.0//EN">
-            <HTML>
-            <head>
-            <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
-            <script type='text/javascript' src='/stylesheets/script.js'></script>
-            <style media="screen" type="text/css">
-            html, body {height: 100%;}
-            
-            #wrap {min-height: 100%;}
-            
-            #main {overflow:auto;
-            padding-bottom: 50px;}  /* must be same height as the footer */
-            
-            #footer {position: relative;
-            margin-top: -50px; /* negative value of footer height */
-            height: 50px;
-            clear:both;}
-            </style>
-            <link rel="stylesheet" href="/stylesheets/style.css" />
-            <TITLE>
-            returnX
-            </TITLE>
-            <script>
-              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-              })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+            template_values['logInUrl'] = users.create_login_url(self.request.uri)
 
-              ga('create', 'UA-43315489-1', 'pfalke.com');
-              ga('send', 'pageview');
-
-            </script>
-            </head>
-            <body><div id="wrap">
-            <div id="main">''')
-        # Make form for update AJAX
-            # <script src="http://malsup.github.com/jquery.form.js"></script> 
-            # <script> 
-            #     $(document).ready(function() { 
-            #         // bind 'updateForm' and provide a simple callback function 
-            #         $('.updateForm').ajaxForm(function() { 
-            #             alert("Thank you for your comment!"); 
-            #         }); 
-            #     }); 
-            # </script> 
-            
-        self.response.out.write('''%s
-            <H1>Hi there%s</H1>''' % (logout,("" if not user else ", "+user.nickname())))
         if users.is_current_user_admin():
-            self.response.out.write('<p><a href=%s>Queue</a> - <a href="https://appengine.google.com/dashboard?&app_id=s~returnitx">Dashboard</a></p>' % (self.uri_for('queue',_full=True)))
-        #Begruessung
-        self.response.out.write('''
-            <p>This is an email reminder service. Want to be reminded about something in 5 days and not hear about it till then? Just send an email to 5days@a.pfalke.com and your reminder comes in 5 days! Any type of time works: monday@a.pfalke.com, june23@a.pfalke.com, ...<p>
-            <p>Note that this app was merely created for trying a few things out. It may be neither reliable nor secure. Don't use it for sensitive/critical things!</p>
-            <h1>Your Reminders</h1>
-            ''')
+            template_values['queueURI'] = self.uri_for('queue',_full=True)
+
+        # table of reminders
         if user:
             now = datetime.datetime.now()
             mailers = db.GqlQuery("SELECT * "
@@ -315,16 +273,15 @@ class MyRequestHandler(webapp.RequestHandler):
                                   now, user.email().lower())
             duenow = mailers.count()
             if duenow>0:
-                self.response.out.write('<h3>Due now: '+str(duenow)+' %s</h3>' % ('reminders' if duenow>1 else 'reminder'))
-                self.response.out.write('Will be send within the next minute.')
-                self.response.out.write(printquery(mailers))
+                template_values['duenow'] = duenow
+                template_values['dueMailers'] = printquery(mailers)
             mailerqueue = db.GqlQuery("SELECT * "
                                       "FROM Mailstore "
                                       "WHERE outtime >= :1 AND unsent = True AND from_email = :2 "
                                       "ORDER BY outtime LIMIT 100",
                                       datetime.datetime.now(), user.email().lower())
-            self.response.out.write('<h3>Queue</h3>')
-            self.response.out.write(printquery(mailerqueue))
+            template_values['mailerqueue'] = printquery(mailerqueue)
+
             pastreminders = db.GqlQuery("SELECT * "
                                       "FROM Mailstore "
                                       "WHERE outtime <= :1 AND unsent = False AND from_email = :2 "
@@ -332,15 +289,13 @@ class MyRequestHandler(webapp.RequestHandler):
                                       datetime.datetime.now(), user.email().lower())
             numberpastrem = pastreminders.count()
             if numberpastrem >0:
-                if numberpastrem <100:
-                    self.response.out.write('<h3>You have received '+str(numberpastrem)+' %s so far.</h3>' % ('reminders' if numberpastrem>1 else 'reminder'))
-                else:
-                    self.response.out.write('<h3>Your last 100 reminders.</h3>')
-                self.response.out.write(printquery(pastreminders))
-        else:
-            self.response.out.write(printquery(None,loggedin=False))
-            self.response.out.write("<p><a href=\"%s\">Log in</a> to see your reminders - no signup required! Gmail users only.</p>" %users.create_login_url(self.request.uri))
-        self.response.out.write('''     </div> </div><div id="footer">Philipp - contact me via x at pfalke.com. Written using Google App Engine, Mandrill, <a href="https://github.com/bear/parsedatetime">parsedatetime</a> and <a href="http://labix.org/python-dateutil">dateutil</a>. </div></body></HTML>''')
+                template_values['pastreminders'] = printquery(pastreminders)
+        else: # show sample reminders
+            template_values['sampleReminders'] = printquery(None,loggedin=False)
+
+        # render the template
+        template = JINJA_ENVIRONMENT.get_template('mainPage.html')
+        self.response.write(template.render(template_values))
 
 
 class DeleteReminderHandler(webapp2.RequestHandler):
@@ -420,7 +375,7 @@ class InboundRequestHandler(webapp.RequestHandler):
 class QueueRequestHandler(webapp.RequestHandler):
     def get(self):
         self.response.out.write('''<html><head>
-        <link rel="stylesheet" href="/stylesheets/style.css" />
+        <link rel="stylesheet" href="/staticAssets/style.css" />
         <script src="http://code.jquery.com/jquery-latest.min.js"  type="text/javascript"></script>
         </head><body>''')
         now = datetime.datetime.now()
