@@ -60,7 +60,7 @@ def sendEmail(
     subject,
     recipient_name='',
     text='',
-    from_email='reminders@a.pfalke.com',
+    from_email=REMINDER_FROM_ADDRESS,
     from_name='Reminders',
     tag='automail',html=''):
     maildict = {
@@ -99,7 +99,7 @@ def sendErrorMailToAdmin(problem,
         problem+" Error "+str(exception),
         recipient_name=recipient_name,
         text="Error with " + problem + ".\n Exception: " + str(exception) +'\nDetails: ' + details,
-        from_email="problems@a.pfalke.com",
+        from_email=config.ERROR_FROM_ADDRES,
         from_name='Reminder Trouble',
         tag="errormessage")
 
@@ -109,14 +109,21 @@ def sendErrorMailToUser(recipient_mail, text='''Something went wrong when creati
     sendEmail(recipient_mail=recipient_mail,
               subject="Couldn't create your reminder!",
               text=text,
-              from_email="reminders@a.pfalke.com",
+              from_email=config.ERROR_FROM_ADDRES,
               tag="time parse error message")
     logging.warning("Sent error mail to user %s because of error:\n %s" % (recipient_mail, text))
 
 
 def sendusermail(email, channel):
     if email == "test@example.com": return 'no mails for this guy.'
-    response = sendEmail('x@pfalke.com',subject=email + " now uses returnX "+ channel,recipient_name='Admin',text=email + " now uses returnX "+ channel,from_email="newusers@pfalke.com",from_name="returnX new users",tag='newuser')
+    response = sendEmail(
+        config.ADMIN_MAIL_ADDRESS,
+        subject="%s now uses %s %s" %(email,os[environ]['APPLICATION_ID'],channel),
+        recipient_name='Admin',
+        text="%s now uses %s %s" %(email,os[environ]['APPLICATION_ID'],channel),
+        from_email=config.NEW_USER_FROM_ADRESS,
+        from_name=os[environ]['APPLICATION_ID'] + " new users",
+        tag='newuser')
     return response
 
 def printquery(query,loggedin=True):
@@ -144,7 +151,10 @@ def printquery(query,loggedin=True):
         htmlstring += '</tbody></table>'
         return htmlstring
     if query.count() == 0:
-        htmlstring += '</tbody></table><p>No reminders - <a href="mailto:tomorrow@a.pfalke.com?Subject=Reminder%20from%20yesterday">create one now</a>!</p>'
+        htmlstring += '''
+            </tbody></table><p>
+            No reminders - <a href="mailto:%s?Subject=Reminder%20from%20yesterday">
+            create one now</a>!</p>''' % config.SAMPLE_REMINDER_ADDRESS
     else:
         for mailer in query:
             try:
@@ -244,7 +254,7 @@ class Sendmail(webapp2.RequestHandler):
                                      subject,
                                      recipient_name=mailer.from_name,
                                      text=mailer.text,
-                                     from_email='reminders@a.pfalke.com',
+                                     from_email=config.REMINDER_FROM_ADDRESS,
                                      from_name="Reminder via "+mailer.email,
                                      tag='Reminder',
                                      html=mailer.html)
