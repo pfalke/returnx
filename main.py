@@ -60,7 +60,7 @@ def sendEmail(
     subject,
     recipient_name='',
     text='',
-    from_email=REMINDER_FROM_ADDRESS,
+    from_email=config.REMINDER_FROM_ADDRESS,
     from_name='Reminders',
     tag='automail',html=''):
     maildict = {
