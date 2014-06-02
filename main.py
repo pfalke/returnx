@@ -6,8 +6,6 @@ import json
 import datetime
 from google.appengine.ext import db
 from dateutil.relativedelta import relativedelta
-# from time import mktime
-# from parsedatetime.__init__ import Calendar
 from parseTime import parseTime
 import logging
 
@@ -43,18 +41,6 @@ class Userdata(db.Model):
     email = db.StringProperty()
     usedweb = db.BooleanProperty()
     usedmail = db.BooleanProperty()
-    
-# def parsetime(mailstr):
-#     cal = Calendar()
-#     out = cal.parse(mailstr)
-#     return datetime.datetime.fromtimestamp(mktime(out[0]))
-
-# def seteightam(maildate):
-#     #if maildate later than tomorrow, time is set to 8am = 7am UTC
-#     now = datetime.datetime.today()
-#     if maildate >= now+relativedelta(days=1):
-#         maildate= datetime.datetime(maildate.year,maildate.month,maildate.day,7,0,0)
-#     return maildate
 
 def sendmail(maildict):
     #sends email via Manrill, returns HTTP response from Mandrill
@@ -209,7 +195,7 @@ def seenuserbefore(email, usedweb=False, usedmail=False):
         return thisuser
     else:
         if beenseenbeforequery.count(limit=2)>1:
-            senderrormail('multiple users in DB for email ' + email, 'Error')
+            sendErrorMailToAdmin('multiple users in DB for email ' + email, 'Error')
         thisuser = beenseenbeforequery[0]
         if usedweb and not thisuser.usedweb:
             thisuser.usedweb = True
@@ -232,11 +218,11 @@ class UpdateReminder(webapp2.RequestHandler):
                 self.response.out.write(str(mailer.outtime.strftime("%d %b %Y %H:%M")))
                 return
             else:
-                senderrormail('Illegal update attempt', 'Error')
+                sendErrorMailToAdmin('Illegal update attempt', 'Error')
                 self.response.out.write("Keep your fingers off!")
                 return
         except Exception, err:
-            senderrormail('Trying to update reminder: ',err)
+            sendErrorMailToAdmin('Trying to update reminder: ',err)
             self.response.out.write("Please refresh.")
             return
 
@@ -263,7 +249,7 @@ class Sendmail(webapp2.RequestHandler):
                                      tag='Reminder',
                                      html=mailer.html)
                 if response == -1:
-                    senderrormail("Couldn't send reminder", "Mandrill")
+                    sendErrorMailToAdmin("Couldn't send reminder", "Mandrill")
                 else:
                     mailer.unsent = False
                     mailer.put()
@@ -344,9 +330,9 @@ class DeleteReminderHandler(webapp2.RequestHandler):
                     self.response.out.write('Success')
                     return
                 else:
-                    senderrormail('Illegal delete attempt', 'Error')
+                    sendErrorMailToAdmin('Illegal delete attempt', 'Error')
         except Exception, err:
-            senderrormail('Trying to delete reminder: ',err)
+            sendErrorMailToAdmin('Trying to delete reminder: ',err)
         self.response.out.write('Fail')
         return
         
@@ -381,12 +367,16 @@ class InboundRequestHandler(webapp.RequestHandler):
             # logging.info(messagedata)
             # logging.info(self.request.get('mandrill_events'))
         except Exception, err:
-            logging.error('JSON load')
-            senderrormail("JSON load",err)
+            sendErrorMailToAdmin(
+                "Exception loading JSON.", err,
+                details='''
+Could not load JSON for mail from %s to %s''' % (mailer.from_email,
+                    mailer.email))
+            sendErrorMailToUser(mailer.from_email)
         # lookup user in datastore
         thisuser = seenuserbefore(messagedata['from_email'].lower(),usedmail=True)
         # Timezone: may later be specified by user, otherwise infer from mail header
-        # default to German standard time
+        # default to German standard time, i.e. UTC+0100
         try:
             timezoneObject = inferTimezoneFromHeader(messagedata['headers']['Date'])
             logging.info('timezone inferred: %s' % timezoneObject)
@@ -401,7 +391,12 @@ class InboundRequestHandler(webapp.RequestHandler):
                                from_email = messagedata['from_email'].lower(),
                                email = messagedata['email'])
         except Exception, err:
-            senderrormail("Read from ", err)
+            sendErrorMailToAdmin(
+                "Exception creating datastore object.", err,
+                details='''
+Could not create datastore object for mail from %s to %s''' % (mailer.from_email,
+                    mailer.email))
+            sendErrorMailToUser(mailer.from_email)
             return
         #store more data from request
         mailer.raw_msg = messagedata['raw_msg'] if 'raw_msg' in messagedata else ''
@@ -435,7 +430,6 @@ class InboundRequestHandler(webapp.RequestHandler):
         pass
 
 #Displays the queue to admins
-
 class QueueRequestHandler(webapp.RequestHandler):
     def get(self):
         self.response.out.write('''<html><head>
