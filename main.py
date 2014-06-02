@@ -6,14 +6,19 @@ import json
 import datetime
 from google.appengine.ext import db
 from dateutil.relativedelta import relativedelta
-from time import mktime
-from parsedatetime.__init__ import Calendar
+# from time import mktime
+# from parsedatetime.__init__ import Calendar
+from parseTime import parseTime
 import logging
 
-#create a config.py that has your Mandrill API key as MANDRILL_KEY.
+# create a config.py that has your Mandrill API key as MANDRILL_KEY.
 import config
 import os
 import jinja2
+
+import re
+from dateutil.tz import *
+
 
 JINJA_ENVIRONMENT = jinja2.Environment(
     loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
@@ -39,17 +44,17 @@ class Userdata(db.Model):
     usedweb = db.BooleanProperty()
     usedmail = db.BooleanProperty()
     
-def parsetime(mailstr):
-    cal = Calendar()
-    out = cal.parse(mailstr)
-    return datetime.datetime.fromtimestamp(mktime(out[0]))
+# def parsetime(mailstr):
+#     cal = Calendar()
+#     out = cal.parse(mailstr)
+#     return datetime.datetime.fromtimestamp(mktime(out[0]))
 
-def seteightam(maildate):
-    #if maildate later than tomorrow, time is set to 8am = 7am UTC
-    now = datetime.datetime.today()
-    if maildate >= now+relativedelta(days=1):
-        maildate= datetime.datetime(maildate.year,maildate.month,maildate.day,7,0,0)
-    return maildate
+# def seteightam(maildate):
+#     #if maildate later than tomorrow, time is set to 8am = 7am UTC
+#     now = datetime.datetime.today()
+#     if maildate >= now+relativedelta(days=1):
+#         maildate= datetime.datetime(maildate.year,maildate.month,maildate.day,7,0,0)
+#     return maildate
 
 def sendmail(maildict):
     #sends email via Manrill, returns HTTP response from Mandrill
@@ -64,7 +69,14 @@ def sendmail(maildict):
         response = -1
     return str(response)
 
-def sendEmail(recipient_mail,subject,recipient_name='',text='',from_email='reminders@a.pfalke.com',from_name='Reminders',tag='automail',html=''):
+def sendEmail(
+    recipient_mail,
+    subject,
+    recipient_name='',
+    text='',
+    from_email='reminders@a.pfalke.com',
+    from_name='Reminders',
+    tag='automail',html=''):
     maildict = {
         "key": config.MANDRILL_KEY,
         "message": {
@@ -88,10 +100,32 @@ def sendEmail(recipient_mail,subject,recipient_name='',text='',from_email='remin
     response = sendmail(maildict)
     return response
 
-def senderrormail(problem, err,recipient_mail='test@pfalke.com',recipient_name='Admin'):
-    logging.error(problem)
-    logging.error(str(err))
-    return sendEmail(recipient_mail,problem+" Error "+str(err),recipient_name=recipient_name,text="Error with "+problem+": " + str(err),from_email="problems@a.pfalke.com",from_name='Reminder Trouble',tag="errormessage")
+def sendErrorMailToAdmin(problem,
+    exception,
+    details='none',
+    recipient_mail=config.ADMIN_MAIL_ADDRESS,
+    recipient_name='Admin'):
+    logging.error('Problem: ' + problem)
+    logging.error('Exception: ' + str(exception))
+    logging.error('Details: %s' % details)
+    return sendEmail(
+        recipient_mail,
+        problem+" Error "+str(exception),
+        recipient_name=recipient_name,
+        text="Error with " + problem + ".\n Exception: " + str(exception) +'\nDetails: ' + details,
+        from_email="problems@a.pfalke.com",
+        from_name='Reminder Trouble',
+        tag="errormessage")
+
+def sendErrorMailToUser(recipient_mail, text='''Something went wrong when creating your reminder.
+                It might help to try again later. Also, attachments are known to mess things up.
+                \nThat's all we know. Sorry!'''):
+    sendEmail(recipient_mail=recipient_mail,
+              subject="Couldn't create your reminder!",
+              text=text,
+              from_email="reminders@a.pfalke.com",
+              tag="time parse error message")
+    logging.warning("Sent error mail to user %s because of error:\n %s" % (recipient_mail, text))
 
 
 def sendusermail(email, channel):
@@ -316,19 +350,49 @@ class DeleteReminderHandler(webapp2.RequestHandler):
         self.response.out.write('Fail')
         return
         
+def inferTimezoneFromHeader(headerString):
+    tzRegex = r'''
+        (?P<sign>[-+])
+        (?P<amount>\d{4})
+        '''
+    matches = re.search(tzRegex, headerString, re.VERBOSE)
+    if not matches:
+        raise Exception('no match')
+    sign, amount = matches.group('sign', 'amount')
+    utcOffset = 3600 * (-1 if sign == '-' else 1) * int(amount)/100
+    return tzoffset("inferredFromHeader %s%s" % (sign,amount), utcOffset)
+
+# return test from test@example.com, does not check if the string is a valid email address
+def stringBeforeAtSign(emailAdress):
+    matchObj = re.match(r'([^@]+)@', emailAdress)
+    if matchObj:
+        return matchObj.group(1)
+    return None
+
 #Receives Mandrill Webhooks for incoming mail
 class InboundRequestHandler(webapp.RequestHandler):
     logging.getLogger().setLevel(logging.DEBUG)
     #incoming Mandrill Webhook
     def post(self):
         try:
-            #extract data from webhook
+            # extract data from webhook
             mandrilldata = json.loads(self.request.get('mandrill_events'))
             messagedata = mandrilldata[0]['msg']
+            # logging.info(messagedata)
+            # logging.info(self.request.get('mandrill_events'))
         except Exception, err:
+            logging.error('JSON load')
             senderrormail("JSON load",err)
-        #lookup user in datastore
+        # lookup user in datastore
         thisuser = seenuserbefore(messagedata['from_email'].lower(),usedmail=True)
+        # Timezone: may later be specified by user, otherwise infer from mail header
+        # default to German standard time
+        try:
+            timezoneObject = inferTimezoneFromHeader(messagedata['headers']['Date'])
+            logging.info('timezone inferred: %s' % timezoneObject)
+        except Exception, e:
+            logging.info('timezone not recognized: %s' % e)
+            timezoneObject = tzoffset("defaultToGermanStandardTime", 3600*1)
         try:
             #create reminder in datastore
             mailer = Mailstore(parent=thisuser, 
@@ -337,7 +401,7 @@ class InboundRequestHandler(webapp.RequestHandler):
                                from_email = messagedata['from_email'].lower(),
                                email = messagedata['email'])
         except Exception, err:
-            senderrormail("Read from",err)
+            senderrormail("Read from ", err)
             return
         #store more data from request
         mailer.raw_msg = messagedata['raw_msg'] if 'raw_msg' in messagedata else ''
@@ -346,27 +410,27 @@ class InboundRequestHandler(webapp.RequestHandler):
         mailer.html = messagedata['html'] if 'html' in messagedata else ''
         mailer.from_name = messagedata['from_name'] if 'from_name' in messagedata else ''
         #parse timedelta from email
-        mailsendtime = None
         try:
-            mailsendtime = parsetime(mailer.email)
-            mailer.outtime = seteightam(mailsendtime)
-        except Exception, err:
-            senderrormail("Timing your reminder",err)
-            return
-        try:
+            timestring = stringBeforeAtSign(mailer.email)
+            mailer.outtime = parseTime(timestring, timezoneObject)
             #check if time was successfully parsed
-            if mailer.outtime <= datetime.datetime.now()+relativedelta(minutes=10):
-                sendEmail(recipient_mail=mailer.from_email,
-                          subject="Couldn't recognize time for your reminder!",
-                          text="Couldn't recognize time for your reminder!",
-                          from_email="reminders@a.pfalke.com",
-                          tag="time parse error message")
-            else:
-                #store reminder
-                mailer.put()
+            if not mailer.outtime or \
+                mailer.outtime <= datetime.datetime.now(timezoneObject)+relativedelta(minutes=10):
+                sendErrorMailToUser(
+                    mailer.from_email,
+                    text="Couldn't recognize time \"%s\" for your reminder!" % mailer.email)
+                return 
+            #store reminder
+            mailer.put()
         except Exception, err:
-            senderrormail("Check if time valid/send error mail",err)
+            sendErrorMailToAdmin(
+                "Exception timing/storing a reminder.", err,
+                details='Could not time/store reminder for mail from %s to %s' % (mailer.from_email,
+                    mailer.email))
+            sendErrorMailToUser(mailer.from_email)
+            return
 
+    # Mandrill sends HEAD request to check if webhook URL is valid
     def head(self):
         pass
 
@@ -432,5 +496,5 @@ app = webapp2.WSGIApplication([
        ('/inbound', InboundRequestHandler),
        webapp2.Route(r'/queue', handler=QueueRequestHandler, name='queue'),
        ('/deleteReminder', DeleteReminderHandler),
-       webapp2.Route(r'/sendmail/', handler=Sendmail, name='sendmail')],
+       webapp2.Route(r'/sendmail', handler=Sendmail, name='sendmail')],
        debug=True)
