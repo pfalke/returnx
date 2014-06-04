@@ -10,3 +10,6 @@ SAMPLE_REMINDER_ADDRESS = 'tomorrow@example.com'
 
 # at what time of the day do users get reminders if they only specify the date
 DEFAULT_START_OF_DAY = 7
+# when timezone cannot be inferred from eamail header and is not specified by user
+# use this UTC offsett (in hours)
+DEFAULT_UTC_OFFSETT = 1

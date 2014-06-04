@@ -329,6 +329,13 @@ class DeleteReminderHandler(webapp2.RequestHandler):
             sendErrorMailToAdmin('Trying to delete reminder: ',err)
         self.response.out.write('Fail')
         return
+
+# return test from test@example.com, does not check if the string is a valid email address
+def stringBeforeAtSign(emailAdress):
+    matchObj = re.match(r'([^@]+)@', emailAdress)
+    if matchObj:
+        return matchObj.group(1)
+    return None
         
 def inferTimezoneFromHeader(headerString):
     tzRegex = r'''
@@ -342,12 +349,35 @@ def inferTimezoneFromHeader(headerString):
     utcOffset = 3600 * (-1 if sign == '-' else 1) * int(amount)/100
     return tzoffset("inferredFromHeader %s%s" % (sign,amount), utcOffset)
 
-# return test from test@example.com, does not check if the string is a valid email address
-def stringBeforeAtSign(emailAdress):
-    matchObj = re.match(r'([^@]+)@', emailAdress)
-    if matchObj:
-        return matchObj.group(1)
-    return None
+def getTimezone(userObject,messagedata):
+    # if user has specified timezone, try both functions to get TZ object
+    if userObject.timeZoneAsZoneInfo:
+        try:
+            tz = zoneinfo.gettz(userObject.timeZoneAsZoneInfo)
+            if tz:
+                logging.info('using user-specified timezone %s (%s) from zoneinfo' \
+                    % (userObject.timeZoneAsZoneInfo, tz))
+                return (tz, True)
+        except Exception, e:
+            logging.info('using zoneinfo func failed: %s' % e)
+        try:
+            tz = gettz(userObject.timeZoneAsZoneInfo)
+            if tz:
+                logging.info('using user-specified timezone %s (%s) from gettz' \
+                    % (userObject.timeZoneAsZoneInfo, tz))
+                return (tz, True)
+        except Exception, e:
+            logging.info('using gettz func failed: %s' % e)
+
+    # extract UTC offset from email header and use it
+    try:
+        tz = inferTimezoneFromHeader(messagedata['headers']['Date'])
+        logging.info('timezone inferred: %s' % tz)
+    except Exception, e:
+        logging.info('timezone not recognized: %s' % e)
+        tz = tzoffset("defaultUtcOffsett", config.DEFAULT_UTC_OFFSETT * 3600)
+    return (tz, False)
+
 
 #Receives Mandrill Webhooks for incoming mail
 class InboundRequestHandler(webapp.RequestHandler):
@@ -369,14 +399,8 @@ Could not load JSON for mail from %s to %s''' % (mailer.from_email,
             sendErrorMailToUser(mailer.from_email)
         # lookup user in datastore
         thisuser = seenuserbefore(messagedata['from_email'].lower(),usedmail=True)
-        # Timezone: may later be specified by user, otherwise infer from mail header
-        # default to German standard time, i.e. UTC+0100
-        try:
-            timezoneObject = inferTimezoneFromHeader(messagedata['headers']['Date'])
-            logging.info('timezone inferred: %s' % timezoneObject)
-        except Exception, e:
-            logging.info('timezone not recognized: %s' % e)
-            timezoneObject = tzoffset("defaultToGermanStandardTime", 3600*1)
+        # Timezone to be used with the reminder
+        timezoneObject, tzSpecifiedByUser = getTimezone(thisuser, messagedata)
         try:
             #create reminder in datastore
             mailer = Mailstore(parent=thisuser, 
@@ -411,6 +435,7 @@ Could not create datastore object for mail from %s to %s''' % (mailer.from_email
                 return 
             #store reminder
             mailer.startOfDayUsed = startOfDayUsed
+            mailer.timezoneUpdatable = tzSpecifiedByUser
             mailer.put()
         except Exception, err:
             sendErrorMailToAdmin(
@@ -493,16 +518,18 @@ class TestHandler(webapp.RequestHandler):
 
         logging.info('test abidjan')
         try:
-            tz = zoneinfo.gettz("Brazil/East")
+            tz = zoneinfo.gettz("Brazil/Eaxst")
+            logging.info(not not tz)
             dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
             logging.info(dt.strftime('%X %x %Z'))
             logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
         except:
-            pass        
+            logging.error('went wrong')        
 
         logging.info('test azores')
         try:
             tz = tzstr('AZOREST1AZOREDT')
+            logging.info(not not tz)
             dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
             logging.info(dt.strftime('%X %x %Z'))
             logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
