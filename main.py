@@ -16,6 +16,7 @@ import jinja2
 
 import re
 from dateutil.tz import *
+from dateutil import zoneinfo
 
 
 JINJA_ENVIRONMENT = jinja2.Environment(
@@ -153,8 +154,8 @@ def printquery(query,loggedin=True):
     if query.count() == 0:
         htmlstring += '''
             </tbody></table><p>
-            No reminders - <a href="mailto:%s?Subject=Reminder%20from%20yesterday">
-            create one now</a>!</p>''' % config.SAMPLE_REMINDER_ADDRESS
+            No reminders - <a href="mailto:%s?Subject=%s">
+            create one now</a>!</p>''' % (config.SAMPLE_REMINDER_ADDRESS,'ReminderFromYesterday')
     else:
         for mailer in query:
             try:
@@ -497,13 +498,10 @@ class QueueRequestHandler(webapp.RequestHandler):
 
 class TestHandler(webapp.RequestHandler):
     def get(self):
-        from datetime import *
-        from dateutil.tz import *
-
         logging.info('test azores')
         try:
-            tz = tzstr('AZOREST1AZOREDT')
-            dt = datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
+            tz = gettz('AZOREST1AZOREDT')
+            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
             logging.info(dt.strftime('%X %x %Z'))
             logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
         except:
@@ -511,12 +509,31 @@ class TestHandler(webapp.RequestHandler):
 
         logging.info('test abidjan')
         try:
-            tz = gettz("America/Sao Paulo")
-            dt = datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
+            tz = zoneinfo.gettz("Brazil/East")
+            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
             logging.info(dt.strftime('%X %x %Z'))
             logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
         except:
             pass        
+
+        logging.info('test azores')
+        try:
+            tz = tzstr('AZOREST1AZOREDT')
+            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
+            logging.info(dt.strftime('%X %x %Z'))
+            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
+        except:
+            logging.error('went wrong')
+
+        logging.info('test abidjan')
+        try:
+            tz2 = gettz("Europe/Berlin")
+            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz2)
+            logging.info(dt.strftime('%X %x %Z'))
+            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
+            logging.info('done')
+        except:
+            logging.error('went wrong')
 
 app = webapp2.WSGIApplication([
        webapp2.Route(r'/test', handler=TestHandler, name='test'),
