@@ -507,44 +507,7 @@ class QueueRequestHandler(webapp.RequestHandler):
 
 class TestHandler(webapp.RequestHandler):
     def get(self):
-        logging.info('test azores')
-        try:
-            tz = gettz('AZOREST1AZOREDT')
-            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
-            logging.info(dt.strftime('%X %x %Z'))
-            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
-        except:
-            pass
-
-        logging.info('test abidjan')
-        try:
-            tz = zoneinfo.gettz("Brazil/Eaxst")
-            logging.info(not not tz)
-            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
-            logging.info(dt.strftime('%X %x %Z'))
-            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
-        except:
-            logging.error('went wrong')        
-
-        logging.info('test azores')
-        try:
-            tz = tzstr('AZOREST1AZOREDT')
-            logging.info(not not tz)
-            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
-            logging.info(dt.strftime('%X %x %Z'))
-            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
-        except:
-            logging.error('went wrong')
-
-        logging.info('test abidjan')
-        try:
-            tz2 = gettz("Europe/Berlin")
-            dt = datetime.datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz2)
-            logging.info(dt.strftime('%X %x %Z'))
-            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
-            logging.info('done')
-        except:
-            logging.error('went wrong')
+        pass
 
 app = webapp2.WSGIApplication([
        webapp2.Route(r'/test', handler=TestHandler, name='test'),
