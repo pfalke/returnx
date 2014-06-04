@@ -7,3 +7,6 @@ REMINDER_FROM_ADDRESS = 'reminders@example.com'
 ERROR_FROM_ADDRES = 'problems@example.com'
 NEW_USER_FROM_ADRESS = "newusers@example.com"
 SAMPLE_REMINDER_ADDRESS = 'tomorrow@example.com'
+
+# at what time of the day do users get reminders if they only specify the date
+DEFAULT_START_OF_DAY = 7
