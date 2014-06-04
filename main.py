@@ -494,11 +494,37 @@ class QueueRequestHandler(webapp.RequestHandler):
             else:
                 self.redirect(users.create_login_url(self.request.uri))
 
+
+class TestHandler(webapp.RequestHandler):
+    def get(self):
+        from datetime import *
+        from dateutil.tz import *
+
+        logging.info('test azores')
+        try:
+            tz = tzstr('AZOREST1AZOREDT')
+            dt = datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
+            logging.info(dt.strftime('%X %x %Z'))
+            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
+        except:
+            pass
+
+        logging.info('test abidjan')
+        try:
+            tz = gettz("America/Sao Paulo")
+            dt = datetime(2014, 1, 25, 16, 0, 0, tzinfo=tz)
+            logging.info(dt.strftime('%X %x %Z'))
+            logging.info(dt.astimezone(tzutc()).strftime('%X %x %Z'))
+        except:
+            pass        
+
 app = webapp2.WSGIApplication([
+       webapp2.Route(r'/test', handler=TestHandler, name='test'),
        webapp2.Route(r'/', handler=MyRequestHandler, name='mainpage'),
        webapp2.Route(r'/updateReminder', handler=UpdateReminder, name='updateReminder'),
        ('/inbound', InboundRequestHandler),
        webapp2.Route(r'/queue', handler=QueueRequestHandler, name='queue'),
        ('/deleteReminder', DeleteReminderHandler),
-       webapp2.Route(r'/sendmail', handler=Sendmail, name='sendmail')],
+       webapp2.Route(r'/sendmail', handler=Sendmail, name='sendmail')
+       ],
        debug=True)
