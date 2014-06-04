@@ -13,6 +13,8 @@ class Mailstore(db.Model):
     ts = db.DateTimeProperty()
     outtime = db.DateTimeProperty()
     unsent = db.BooleanProperty()
+    # if user only specifies date, default startOfDay time is used and store here
+    startOfDayUsed = db.IntegerProperty()
 
 class Userdata(db.Model):
     email = db.StringProperty()

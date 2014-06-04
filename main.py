@@ -4,7 +4,6 @@ from google.appengine.api import users
 import urllib2
 import json
 import datetime
-from google.appengine.ext import db
 from dateutil.relativedelta import relativedelta
 from parseTime import parseTime
 import logging
@@ -26,24 +25,6 @@ JINJA_ENVIRONMENT = jinja2.Environment(
     extensions=['jinja2.ext.autoescape'])
 
 logging.getLogger().setLevel(logging.DEBUG)
-
-
-class Mailstore(db.Model):
-    raw_msg = db.TextProperty()
-    text = db.TextProperty()
-    html = db.TextProperty()
-    from_email = db.StringProperty()
-    from_name = db.StringProperty()
-    email = db.StringProperty()
-    subject = db.TextProperty()
-    ts = db.DateTimeProperty()
-    outtime = db.DateTimeProperty()
-    unsent = db.BooleanProperty()
-
-class Userdata(db.Model):
-    email = db.StringProperty()
-    usedweb = db.BooleanProperty()
-    usedmail = db.BooleanProperty()
 
 def sendmail(maildict):
     #sends email via Manrill, returns HTTP response from Mandrill
@@ -121,11 +102,11 @@ def sendusermail(email, channel):
     if email == "test@example.com": return 'no mails for this guy.'
     response = sendEmail(
         config.ADMIN_MAIL_ADDRESS,
-        subject="%s now uses %s %s" %(email,os[environ]['APPLICATION_ID'],channel),
+        subject="%s now uses %s %s" %(email,os.environ['APPLICATION_ID'],channel),
         recipient_name='Admin',
-        text="%s now uses %s %s" %(email,os[environ]['APPLICATION_ID'],channel),
+        text="%s now uses %s %s" %(email,os.environ['APPLICATION_ID'],channel),
         from_email=config.NEW_USER_FROM_ADRESS,
-        from_name=os[environ]['APPLICATION_ID'] + " new users",
+        from_name=os.environ['APPLICATION_ID'] + " new users",
         tag='newuser')
     return response
 
@@ -420,15 +401,16 @@ Could not create datastore object for mail from %s to %s''' % (mailer.from_email
         #parse timedelta from email
         try:
             timestring = stringBeforeAtSign(mailer.email)
-            mailer.outtime = parseTime(timestring, timezoneObject)
+            mailer.outtime, startOfDayUsed = parseTime(timestring, timezoneObject, thisuser.startOfDay)
             #check if time was successfully parsed
             if not mailer.outtime or \
-                mailer.outtime <= datetime.datetime.now(timezoneObject)+relativedelta(minutes=10):
+                mailer.outtime <= datetime.datetime.now(timezoneObject)+relativedelta(minutes=5):
                 sendErrorMailToUser(
                     mailer.from_email,
                     text="Couldn't recognize time \"%s\" for your reminder!" % mailer.email)
                 return 
             #store reminder
+            mailer.startOfDayUsed = startOfDayUsed
             mailer.put()
         except Exception, err:
             sendErrorMailToAdmin(
