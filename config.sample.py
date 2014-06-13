@@ -13,3 +13,7 @@ DEFAULT_START_OF_DAY = 7
 # when timezone cannot be inferred from eamail header and is not specified by user
 # use this UTC offsett (in hours)
 DEFAULT_UTC_OFFSETT = 1
+
+# For google Analytics Tracking 
+GOOGLE_ANALYTICS_ID = 'UA-xxxxxxxx-1'
+DOMAIN = 'example.com'

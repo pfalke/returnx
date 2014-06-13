@@ -24,6 +24,6 @@ class Userdata(db.Model):
     usedweb = db.BooleanProperty()
     usedmail = db.BooleanProperty()
     # for example "America/Sao Paulo"
-    timeZoneAsZoneInfo = db.StringProperty(default='Europe/Berlin')
+    timeZoneAsZoneInfo = db.StringProperty()
     # at what time of the day do users get reminders if they only specify the date
     startOfDay = db.IntegerProperty(default=DEFAULT_START_OF_DAY)

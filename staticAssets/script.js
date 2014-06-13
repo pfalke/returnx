@@ -31,7 +31,7 @@ $(document).ready(function() {
 
 	// edit reminders
 	var request;
-	$('form').submit(function(event) {
+	$('form.updateForm').submit(function(event) {
 		if (request) {
 			request.abort();
 		}

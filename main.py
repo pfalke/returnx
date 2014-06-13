@@ -16,6 +16,7 @@ import jinja2
 import re
 from dateutil.tz import *
 from dateutil import zoneinfo
+import timezones
 
 from models import *
 
@@ -505,17 +506,136 @@ class QueueRequestHandler(webapp.RequestHandler):
                 self.redirect(users.create_login_url(self.request.uri))
 
 
+def _12hTimeTo24hTime(timestring):
+    if timestring == '12am':
+        # midnight
+        return 0
+    if timestring == '12pm':
+        # noon
+        return 12
+    matchObj = re.match(r'(?P<number>\d{1,2})(?P<amPm>am|pm)', timestring)
+    if not matchObj:
+        raise Exception('could not extract time')
+    (number, amPm) = matchObj.group('number', 'amPm')
+    number = int(number)
+    if amPm == 'pm':
+        number += 12
+    return number
+
+def _24hTimeTo12hTime(timeNumber):
+    if timeNumber == 0:
+        return '12am'
+    if timeNumber == 12:
+        return '12pm'
+    if timeNumber < 12:
+        return str(timeNumber) + 'am' 
+    return str(timeNumber-12) + 'pm'
+
+
+class SettingsHandler(webapp.RequestHandler):
+    def get(self):
+        user = users.get_current_user()
+        template_values = {
+            'loggedIn': False,
+            'domain': config.DOMAIN,
+            'GA_code': config.GOOGLE_ANALYTICS_ID
+        }
+
+        template_values['userData'] = {
+            'nickname': user.nickname(),
+            'email': user.email(),
+            'logOutUrl': users.create_logout_url("/")
+        }
+
+        userObject = seenuserbefore(user.email().lower(),usedweb=True,usedmail=False)
+
+        template_values['formUri'] = self.uri_for('settings')
+
+        template_values['userSettings'] = {
+            'startOfDay': _24hTimeTo12hTime(userObject.startOfDay),
+            'timeZoneAsZoneInfo': userObject.timeZoneAsZoneInfo
+        }
+
+        template_values['timezones'] = timezones.GOOD_ZONES
+
+        # render the template
+        template = JINJA_ENVIRONMENT.get_template('userSettings.html')
+        self.response.write(template.render(template_values))
+
+    def post(self):
+        user = users.get_current_user()
+        userObject = seenuserbefore(user.email().lower(),usedweb=True,usedmail=False)
+        logging.info(self.request.get('startOfDay'))
+        logging.info(self.request.get('zoneInfo'))
+        startOfDay = _12hTimeTo24hTime(self.request.get('startOfDay'))
+        logging.info(startOfDay)
+        userObject.startOfDay = startOfDay
+        # FIRST CHECK IF THIS TIMEZONE WORKS!
+        userObject.timeZoneAsZoneInfo = self.request.get('zoneInfo')
+        userObject.put()
+        self.redirect(self.uri_for('settings'))
+
+
+# checks if a given timezone is installed
+def tryTz(timeZoneAsZoneInfo):
+    tz = gettz(timeZoneAsZoneInfo)
+    if tz:
+        # logging.info(tz)
+        return 'gettz'
+    tz = zoneinfo.gettz(timeZoneAsZoneInfo)
+    if tz:
+        # logging.warning(tz)
+        return 'zoneinfo'
+    return False
+
+# timezones are hardcoded in the timezones.py file. In case the zones installed on the 
+# server change, this handler called daily by a cron job to check if all selectable zones are
+# still present
+class CheckTimezonesHandler(webapp.RequestHandler):
+    def get(self):
+        try:
+            goodZones = []
+            badZones = []
+            usedZoneinfo = False
+            usedGettz = False
+            for i in timezones.GOOD_ZONES:
+            # for i in ['Africa/Abidjan', 'Africa/Accra', r'Africa/Addis Ababa']:
+                x = tryTz(i)
+                if not x:
+                    badZones.append(i)
+                    logging.warning(i)
+                else:
+                    goodZones.append(i)
+                if x == 'gettz':
+                    usedGettz = True
+                elif x == 'zoneinfo':
+                    usedZoneinfo = True
+        except Exception, e:
+            sendErrorMailToAdmin('timezones',e)
+        # we have implemented two functions for instantiating a timezoneObject from a 
+        # zoneinfo string. display which ones are actually used
+        logging.info('used gettz: %s' % usedGettz)
+        logging.info('used zoneinfo: %s' % usedZoneinfo)
+        logging.info(goodZones)
+        logging.info(badZones)
+        # if len(badZones)>0:
+        #     sendErrorMailToAdmin('timezones','',str(badZones))
+        self.response.out.write(str(len(goodZones)) + ' ' + str(len(badZones)))
+
 class TestHandler(webapp.RequestHandler):
     def get(self):
-        pass
+        self.response.out.write(_parseDaytime('1pm'))
+
 
 app = webapp2.WSGIApplication([
        webapp2.Route(r'/test', handler=TestHandler, name='test'),
+       webapp2.Route(r'/settings', handler=SettingsHandler, name='settings'),
        webapp2.Route(r'/', handler=MyRequestHandler, name='mainpage'),
        webapp2.Route(r'/updateReminder', handler=UpdateReminder, name='updateReminder'),
        ('/inbound', InboundRequestHandler),
        webapp2.Route(r'/queue', handler=QueueRequestHandler, name='queue'),
        ('/deleteReminder', DeleteReminderHandler),
-       webapp2.Route(r'/sendmail', handler=Sendmail, name='sendmail')
+       webapp2.Route(r'/sendmail', handler=Sendmail, name='sendmail'),
+       webapp2.Route(r'/checkTimezones', handler=CheckTimezonesHandler, name='checkTimezones')
        ],
        debug=True)

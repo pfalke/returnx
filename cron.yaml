@@ -2,3 +2,6 @@ cron:
 - description: hourly mail send
   url: /sendmail
   schedule: every 1 minutes 
+- description: check time zones
+  url: /checkTimezones
+  schedule: every 24 hours
