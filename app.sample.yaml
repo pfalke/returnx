@@ -13,6 +13,7 @@ handlers:
 
 - url: /staticAssets
   static_dir: staticAssets
+  expiration: "5m"
 
 - url: /(inbound|updateReminder|deleteReminder)
   script: main.app
