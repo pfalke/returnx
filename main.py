@@ -251,6 +251,19 @@ class Sendmail(webapp2.RequestHandler):
                     self.response.out.write('<p>Mail sent to '+mailer.from_name+' ('+mailer.from_email+') who had written at '+mailer.ts.ctime()+' and whose reminder was due '+mailer.outtime.ctime()+'. Status Code: '+response+'</p>')
             except Exception, err:
                 self.response.out.write('<p>Encountered exception '+str(err)+' when trying to send mail to '+mailer.from_name+' ('+mailer.from_email+').</p>')
+            try:
+                reminderCreator = mailer.parent()
+                if reminderCreator:
+                    if reminderCreator.remindersInStore:
+                        reminderCreator.remindersInStore -=1
+                    if not reminderCreator.remindersSent:
+                        reminderCreator.remindersSent = 0
+                    reminderCreator.remindersSent +=1
+                    reminderCreator.put()
+            except Exception, e:
+                logging.error('Could not update reminder count: %s' % e)
+
+
         self.response.out.write('''
                     </body>
                     </html>
@@ -387,10 +400,10 @@ class InboundRequestHandler(webapp.RequestHandler):
     def post(self):
         try:
             # extract data from webhook
+            logging.info('length of recieved JSON: %s' % len(self.request.get('mandrill_events')))
             mandrilldata = json.loads(self.request.get('mandrill_events'))
             messagedata = mandrilldata[0]['msg']
-            # logging.info(messagedata)
-            # logging.info(self.request.get('mandrill_events'))
+            logging.info('successfully decoded JSON')
         except Exception, err:
             sendErrorMailToAdmin(
                 "Exception loading JSON.", err,
@@ -418,7 +431,6 @@ Could not create datastore object for mail from %s to %s''' % (mailer.from_email
             sendErrorMailToUser(mailer.from_email)
             return
         #store more data from request
-        mailer.raw_msg = messagedata['raw_msg'] if 'raw_msg' in messagedata else ''
         mailer.subject = messagedata['subject'] if 'subject' in messagedata else 'Reminder'
         mailer.text = messagedata['text'] if 'text' in messagedata else mailer.subject
         mailer.html = messagedata['html'] if 'html' in messagedata else ''
@@ -444,7 +456,16 @@ Could not create datastore object for mail from %s to %s''' % (mailer.from_email
                 details='Could not time/store reminder for mail from %s to %s' % (mailer.from_email,
                     mailer.email))
             sendErrorMailToUser(mailer.from_email)
+            logging.error('html: \n%s' % mailer.html)
+            logging.error('text: \n%s' % mailer.text)
             return
+        try:
+            if not thisuser.remindersInStore:
+                thisuser.remindersInStore = 0
+            thisuser.remindersInStore +=1
+            thisuser.put()
+        except Exception, e:
+            logging.error('Could not update reminder count: %s' % e)
 
     # Mandrill sends HEAD request to check if webhook URL is valid
     def head(self):

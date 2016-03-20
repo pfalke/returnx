@@ -3,7 +3,7 @@ from config import DEFAULT_START_OF_DAY
 
 
 class Mailstore(db.Model):
-    raw_msg = db.TextProperty()
+    raw_msg = db.TextProperty() # deprecated - no longer used!
     text = db.TextProperty()
     html = db.TextProperty()
     from_email = db.StringProperty()
@@ -23,6 +23,8 @@ class Userdata(db.Model):
     email = db.StringProperty()
     usedweb = db.BooleanProperty()
     usedmail = db.BooleanProperty()
+    remindersInStore = db.IntegerProperty(default=0)
+    remindersSent = db.IntegerProperty(default=0)
     # for example "America/Sao Paulo"
     timeZoneAsZoneInfo = db.StringProperty()
     # at what time of the day do users get reminders if they only specify the date
