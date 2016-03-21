@@ -15,7 +15,7 @@ class Mailstore(db.Model):
     unsent = db.BooleanProperty()
     # if user only specifies date, default startOfDay time is used and store here
     startOfDayUsed = db.IntegerProperty()
-    # when a user changes his timezone, all reminders that have been created on a 
+    # when a user changes his timezone, all reminders that have been created on a
     # user specified timezone are updated
     timezoneUpdatable = db.BooleanProperty(default=False)
 
@@ -29,3 +29,4 @@ class Userdata(db.Model):
     timeZoneAsZoneInfo = db.StringProperty()
     # at what time of the day do users get reminders if they only specify the date
     startOfDay = db.IntegerProperty(default=DEFAULT_START_OF_DAY)
+    

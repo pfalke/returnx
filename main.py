@@ -568,7 +568,7 @@ class SettingsHandler(webapp.RequestHandler):
             'logOutUrl': users.create_logout_url("/")
         }
 
-        userObject = seenuserbefore(user.email().lower(),usedweb=True,usedmail=False)
+        userObject = seenuserbefore(user.email().lower(), usedweb=True, usedmail=False)
 
         template_values['formUri'] = self.uri_for('settings')
 
@@ -585,7 +585,7 @@ class SettingsHandler(webapp.RequestHandler):
 
     def post(self):
         user = users.get_current_user()
-        userObject = seenuserbefore(user.email().lower(),usedweb=True,usedmail=False)
+        userObject = seenuserbefore(user.email().lower(), usedweb=True, usedmail=False)
         logging.info(self.request.get('startOfDay'))
         logging.info(self.request.get('zoneInfo'))
         startOfDay = _12hTimeTo24hTime(self.request.get('startOfDay'))
@@ -609,7 +609,8 @@ def tryTz(timeZoneAsZoneInfo):
         return 'zoneinfo'
     return False
 
-# timezones are hardcoded in the timezones.py file. In case the zones installed on the 
+
+# timezones are hardcoded in the timezones.py file. In case the zones installed on the
 # server change, this handler called daily by a cron job to check if all selectable zones are
 # still present
 class CheckTimezonesHandler(webapp.RequestHandler):
@@ -632,8 +633,8 @@ class CheckTimezonesHandler(webapp.RequestHandler):
                 elif x == 'zoneinfo':
                     usedZoneinfo = True
         except Exception, e:
-            sendErrorMailToAdmin('timezones',e)
-        # we have implemented two functions for instantiating a timezoneObject from a 
+            sendErrorMailToAdmin('timezones', e)
+        # we have implemented two functions for instantiating a timezoneObject from a
         # zoneinfo string. display which ones are actually used
         logging.info('used gettz: %s' % usedGettz)
         logging.info('used zoneinfo: %s' % usedZoneinfo)
@@ -642,6 +643,7 @@ class CheckTimezonesHandler(webapp.RequestHandler):
         # if len(badZones)>0:
         #     sendErrorMailToAdmin('timezones','',str(badZones))
         self.response.out.write(str(len(goodZones)) + ' ' + str(len(badZones)))
+
 
 class TestHandler(webapp.RequestHandler):
     def get(self):
