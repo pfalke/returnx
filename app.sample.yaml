@@ -4,31 +4,29 @@ runtime: python27
 api_version: 1
 threadsafe: yes
 
+# default_expiration: "4d 5h"
+
 handlers:
 - url: /favicon\.ico
   static_files: favicon.ico
   upload: favicon\.ico
 
-# ReturnIt
 
+# ReturnIt
 - url: /staticAssets
   static_dir: staticAssets
-  expiration: "5m"
+  expiration: "10m"
 
-- url: /(inbound|updateReminder|deleteReminder)
+- url: /(|inbound|updateReminder|deleteReminder|test)
   script: main.app
 
-- url: /(queue|sendmail)
+- url: /(settings)
+  script: main.app
+  login: required
+
+- url: /(queue|sendmail|checkTimezones)
   script: main.app
   login: admin
-
-# URL Shortener
-
-- url: /s
-  script: urlshort.app
-
-- url: /s/(.*)
-  script: urlshort.app
 
 libraries:
 - name: webapp2
