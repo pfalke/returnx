@@ -31,14 +31,6 @@ logging.getLogger().setLevel(logging.DEBUG)
 def sendmail(maildict):
     #sends email via Manrill, returns HTTP response from Mandrill
     mailjson = json.dumps(maildict)
-    url = 'https://mandrillapp.com/api/1.0/messages/send.json'
-    try:
-        f = urllib2.urlopen(url, mailjson)
-        response = f.read()
-        f.close()
-    except:
-        logging.error('cannot send mail')
-        response = -1
     try:
         result = urlfetch.fetch(
             url=config.AWS_SENDMAIL_API_RESOURCE,
@@ -46,8 +38,10 @@ def sendmail(maildict):
             method=urlfetch.POST,
             headers={"Content-Type":"application/json"}
             )
+        response = result['content']
     except Exception, err:
         logging.error(str(err))
+        response = -1
     return str(response)
 
 def sendEmail(
