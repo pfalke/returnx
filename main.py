@@ -1,6 +1,7 @@
 import webapp2
 from google.appengine.ext import webapp
 from google.appengine.api import users
+from google.appengine.api import urlfetch
 import urllib2
 import json
 import datetime
@@ -38,6 +39,15 @@ def sendmail(maildict):
     except:
         logging.error('cannot send mail')
         response = -1
+    try:
+        result = urlfetch.fetch(
+            url=config.AWS_SENDMAIL_API_RESOURCE,
+            payload=mailjson,
+            method=urlfetch.POST,
+            headers={"Content-Type":"application/json"}
+            )
+    except Exception, err:
+        logging.error(str(err))
     return str(response)
 
 def sendEmail(
