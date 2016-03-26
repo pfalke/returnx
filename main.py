@@ -408,8 +408,9 @@ class InboundRequestHandler(webapp.RequestHandler):
             mandrilldata = json.loads(self.request.get('mandrill_events'))
             messagedata = mandrilldata[0]['msg']
             logging.info('successfully decoded JSON')
-            if not mandrilldata[0]['key'] == config.MANDRILL_KEY:
-                logging.error('Inbound email request with non-matching secret key. Received key: %s' % mandrilldata[0]['key'])
+            logging.info(json.dumps(mandrilldata, indent=2))
+            # if not mandrilldata[0]['key'] == config.MANDRILL_KEY:
+            #     logging.error('Inbound email request with non-matching secret key. Received key: %s' % mandrilldata[0]['key'])
         except Exception, err:
             sendErrorMailToAdmin(
                 "Exception loading JSON.", err,
