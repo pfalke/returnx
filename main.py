@@ -38,7 +38,7 @@ def sendmail(maildict):
             method=urlfetch.POST,
             headers={"Content-Type":"application/json"}
             )
-        response = result['content']
+        response = result.content
     except Exception, err:
         logging.error(str(err))
         response = -1
